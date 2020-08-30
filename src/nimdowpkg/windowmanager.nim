@@ -464,19 +464,18 @@ proc hookConfigKeys*(this: WindowManager) =
   # We only care about left and right clicks
   discard XUngrabButton(this.display, AnyButton, AnyModifier, this.rootWindow)
   for button in @[Button1, Button3]:
-    for modifier in modifiers:
-      discard XGrabButton(
-        this.display,
-        button,
-        Mod4Mask or modifier.int,
-        this.rootWindow,
-        false,
-        ButtonPressMask or ButtonReleaseMask or PointerMotionMask,
-        GrabModeASync,
-        GrabModeASync,
-        x.None,
-        x.None
-      )
+    discard XGrabButton(
+      this.display,
+      button,
+      AnyModifier,
+      this.rootWindow,
+      false,
+      ButtonPressMask or ButtonReleaseMask or PointerMotionMask,
+      GrabModeASync,
+      GrabModeASync,
+      x.None,
+      x.None
+    )
 
 proc errorHandler(display: PDisplay, error: PXErrorEvent): cint{.cdecl.} =
   var errorMessage: string = newString(1024)
@@ -848,6 +847,8 @@ proc onFocusIn(this: WindowManager, e: XFocusChangeEvent) =
     client.window,
     this.windowSettings.borderColorFocused
   )
+
+  var wasPreviousClientFloating = false
   if this.selectedMonitor.selectedTag.previouslySelectedClient != nil:
     let previous = this.selectedMonitor.selectedTag.previouslySelectedClient
     if previous.window != client.window:
@@ -856,8 +857,12 @@ proc onFocusIn(this: WindowManager, e: XFocusChangeEvent) =
         previous.window,
         this.windowSettings.borderColorUnfocused
       )
-  if client.isFloating:
+      wasPreviousClientFloating = previous.isFloating
+
+  # Only do this if the last client wasn't floating.
+  if client.isFloating and not wasPreviousClientFloating:
     discard XRaiseWindow(this.display, client.window)
+
   # Render the active window title on the status bar.
   this.renderWindowTitle(this.selectedMonitor)
 
@@ -935,15 +940,23 @@ proc selectClientForMoveResize(this: WindowManager, e: XButtonEvent) =
   this.lastMoveResizeClientState = client.area
 
 proc handleButtonPressed(this: WindowManager, e: XButtonEvent) =
-  case e.button:
-    of Button1:
-      this.mouseState = MouseState.Moving
-      this.selectClientForMoveResize(e)
-    of Button3:
-      this.mouseState = MouseState.Resizing
-      this.selectClientForMoveResize(e)
-    else:
-      this.mouseState = MouseState.Normal
+  let modPressed = (e.state and Mod4Mask) != 0
+  if modPressed:
+    case e.button:
+      of Button1:
+        this.mouseState = MouseState.Moving
+        this.selectClientForMoveResize(e)
+      of Button3:
+        this.mouseState = MouseState.Resizing
+        this.selectClientForMoveResize(e)
+      else:
+        this.mouseState = MouseState.Normal
+  else:
+    # Click happened without mod being pressed
+    let (client, monitor) = this.windowToClient(e.subwindow)
+    if client != nil and client.isFloating:
+      monitor.focusClient(client, false)
+      discard XRaiseWindow(this.display, client.window)
 
 proc handleButtonReleased(this: WindowManager, e: XButtonEvent) =
   this.mouseState = MouseState.Normal

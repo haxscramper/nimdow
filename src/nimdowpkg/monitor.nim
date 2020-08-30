@@ -307,6 +307,8 @@ proc restack*(this: Monitor) =
           winChanges.addr
         )
         winChanges.sibling = c.window
+      elif client.isFullscreen:
+        discard XRaiseWindow(this.display, client.window)
 
     discard XSync(this.display, false)
     var event: XEvent
