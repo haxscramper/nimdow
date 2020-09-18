@@ -6,7 +6,7 @@ import
   nimdowpkg/logger
 
 when isMainModule:
-  const version = "v0.6.10"
+  const version = "v0.7.1"
   when declared(commandLineParams):
     let params = commandLineParams()
     if params.len == 1:
@@ -21,10 +21,10 @@ when isMainModule:
       configloader.configLoc = findConfigPath()
 
   let
-    loadedConfig = newConfig()
+    eventManager = newXEventManager()
+    loadedConfig = newConfig(eventManager)
     configTable = loadConfigFile()
 
-  let eventManager = newXEventManager()
   let nimdow = newWindowManager(eventManager, loadedConfig, configTable)
 
   logger.enabled = loadedConfig.loggingEnabled
