@@ -15,7 +15,8 @@ when isMainModule:
         echo "Nimdow ", version
         quit()
       else:
-        # If given a parameter for a config file, use it instead of the default.
+        # If given a parameter for a config file, use it instead of
+        # the default.
         configloader.configLoc = params[0].string
     else:
       configloader.configLoc = findConfigPath()
@@ -32,4 +33,3 @@ when isMainModule:
 
   loadedConfig.runAutostartCommands(configTable)
   eventManager.startEventListenerLoop(nimdow.display)
-
